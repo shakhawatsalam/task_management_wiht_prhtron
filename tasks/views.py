@@ -50,10 +50,49 @@ def manager_deshboard(request):
     }
     return render(request, 'dashboard/manager-dashboard.html', context)
 
+class ManagerDashboard(LoginRequiredMixin,PermissionRequiredMixin,ListView):
+    permission_required = 'tasks.add_task'
+    login_url = 'sign-in'
+    template_name = 'dashboard/manager-dashboard.html'
+    context_object_name = 'tasks'
+    
+    def get_queryset(self):
+        self.counts = Task.objects.aggregate(
+        total=Count('id'), 
+        completed=Count('id', filter=Q(status="COMPLETED")),
+        in_progress=Count('id', filter=Q(status="IN_PROGRESS")),
+        pending=Count('id', filter=Q(status="PENDING")),
+        )
+    
+        type = self.request.GET.get('type', 'all')
+        base_query = Task.objects.select_related('details').prefetch_related('assigned_to')  # One to One ->  selected_related Many to Many -> prefetch_related
+    
+        if type == 'completed':
+            tasks = base_query.filter(status='COMPLETED')
+        elif type == 'in_progress':
+            tasks = base_query.filter(status='IN_PROGRESS')
+        elif type == 'pending':
+            tasks = base_query.filter(status='PENDING')
+        elif type == 'all':
+            tasks = base_query.all()
+            
+        return tasks
+            
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['counts'] = self.counts
+        print(context, "form get context data ✅✅✅✅✅✅")
+        return context
+    
+
+
 # user dashboard 
 @user_passes_test(is_employee, login_url='no-permission')
 def employee_deshboard(request):
     return render(request, 'dashboard/user-dashboard.html')
+
+
+
 
 def test(request):
     context = {

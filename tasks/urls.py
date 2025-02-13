@@ -1,7 +1,7 @@
 from django.urls import path
-from tasks.views import manager_deshboard, employee_deshboard, test, create_task,view_task,update_task, task_details, dashboard, CreateTask, ViewProject, TaskDetail,DeleteTask, UpdateTask
+from tasks.views import manager_deshboard, employee_deshboard, test, create_task,view_task,update_task, task_details, dashboard, CreateTask, ViewProject, TaskDetail,DeleteTask, UpdateTask, ManagerDashboard
 urlpatterns =[
-    path('manager_dashboard/', manager_deshboard, name="manager-dashboard"),
+    path('manager_dashboard/', ManagerDashboard.as_view(), name="manager-dashboard"),
     path('user_dashboard/', employee_deshboard, name='user-dashboard'),
     path('test/', test),
     path('create-task/', CreateTask.as_view(), name='create-task'),
