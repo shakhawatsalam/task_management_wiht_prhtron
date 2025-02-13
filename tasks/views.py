@@ -11,8 +11,9 @@ from django.http import HttpResponse
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from django.urls import reverse_lazy
 from django.views.generic.base import ContextMixin
-from django.views.generic import ListView, DetailView, UpdateView
+from django.views.generic import ListView, DetailView, UpdateView, DeleteView
 
 # Test For Tasks
 def is_manager(user):
@@ -69,28 +70,12 @@ def create_task(request):
         task_form = TaskModelForm(request.POST ) # For GET
         task_detail_form = TaskDetailModelForm(request.POST,request.FILES)
         if task_form.is_valid() and  task_detail_form.is_valid():
-            """For  Model  Form Date"""
             task = task_form.save()
             task_detail = task_detail_form.save(commit=False)
             task_detail.task = task
             task_detail.save()
             messages.success(request,"Task Created Successfully")
-            return redirect('create-task')
-            """For Django Form Data"""
-            # data =  form.cleaned_data
-            # title =  data.get('title')
-            # description = data.get('description')
-            # due_date= data.get('due_date')
-            # assigned_to = data.get('assigned_to')
-            
-            # task = Task.objects.create(title=title, description=description, due_date=due_date)
-            # # Assign  employee to tasks
-            # for  emp_id in assigned_to:
-            #     employee = Employee.objects.get(id=emp_id)
-            #     task.assigned_to.add(employee)
-            # return HttpResponse("Task Added SuccessFully")    
-    context = {"task_form":  task_form, "task_detail_form": task_detail_form}
-    return render(request, 'task_form.html', context)
+            return redirect('create-task')   
 
 
 # variable for list of decorators
@@ -124,7 +109,9 @@ class CreateTask(ContextMixin,LoginRequiredMixin,PermissionRequiredMixin,View):
             task_detail.task = task
             task_detail.save()
             messages.success(request,"Task Created Successfully")
-            return redirect('create-task')
+            context = self.get_context_data(
+                task_form=task_form, task_detail_form=task_detail_form)
+            return render(request, self.template_name, context)
     
 
 @login_required
@@ -186,66 +173,18 @@ class UpdateTask(UpdateView):
             return redirect('update-task',self.object.id)  
         return redirect('update-task', self.object.id)
         
-        
-        
-        
-        
-        
-        
-        
-        
-
-@login_required
-@permission_required("tasks.delete_task", login_url='no-permission')
-def delete_task(request, id):
-    if request.method == 'POST':
-        task = Task.objects.get(id=id)
-        task.delete()
-        messages.success(request, 'Task Deleted Successfully')
-        return  redirect('manager-dashboard')
-    else:
-        messages.error(request, 'Some thing went wrong')
-        return  redirect('manager-dashboard')
+  
+class DeleteTask(DeleteView, LoginRequiredMixin, PermissionRequiredMixin,):       
+    model = Task
+    pk_url_kwarg = 'id'
+    success_url = reverse_lazy('manager-dashboard')
+            
 
 
 
 @login_required
 @permission_required("tasks.view_task", login_url='no-permission')
 def view_task(request):
-    # Show the tasks  that are completed
-    # tasks = Task.objects.filter(status="COMPLETED")
-    
-    
-    # Show the task  which due date is today
-    # tasks = Task.objects.filter(due_date=date.today())
-    
-    # Show the task whose priority is not low
-    # tasks = TaskDetail.objects.exclude(priority="L")
-    
-    # Show the task that contain word paper 
-    # tasks = Task.objects.filter(title__icontains="c", status="PENDING")
-    
-    #Show the task which are pending in progress
-    # tasks = Task.objects.filter( Q(status="PENDING") | Q(status='IN_PROGRESS'))
-    
-    # select_related query (Foreignkey, OneToOneFiled)
-    # tasks = Task.objects.select_related('details').all()
-    # tasks = TaskDetail.objects.select_related('task').all()
-    # tasks = Task.objects.select_related('project').all()
-    
-    
-    
-    # prefetch_related (reverse ForeignKey, manyTomany)
-    
-    # tasks = Project.objects.prefetch_related('task_set').all()
-    
-    
-    # tasks = Task.objects.prefetch_related('assigned_to').all()
-    
-    # Aggregations
-    
-    # projects = Project.objects.annotate(num_task=Count('task')).order_by('num_task');
-    
     projects = Project.objects.annotate(
         num_task=Count('task')
     ).order_by('num_task')

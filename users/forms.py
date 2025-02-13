@@ -80,11 +80,21 @@ class LoginForm(StyleFormMixin,AuthenticationForm):
         super().__init__(*args, **kwargs)
     
         
-class AssignedRoleForm(StyleFormMixin,forms.Form):
+# class AssignedRoleForm(StyleFormMixin,forms.Form):
+#     role = forms.ModelChoiceField(
+#         queryset= Group.objects.all(),
+#         empty_label="Select a Role"
+#     )
+
+class AssignedRoleForm(StyleFormMixin,forms.ModelForm):
     role = forms.ModelChoiceField(
-        queryset= Group.objects.all(),
+        queryset=Group.objects.all(),
         empty_label="Select a Role"
     )
+
+    class Meta:
+        model = User
+        fields = [] 
     
     
     

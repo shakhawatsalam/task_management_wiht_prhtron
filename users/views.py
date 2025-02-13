@@ -13,8 +13,11 @@ from django.db.models import Prefetch
 from django.contrib.auth.views import LoginView, PasswordChangeView,PasswordChangeDoneView,PasswordResetConfirmView, PasswordResetView
 from django.views.generic import TemplateView, UpdateView
 from django.urls import reverse_lazy
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from django.views.generic import ListView, DetailView, UpdateView, DeleteView
 from django.contrib.auth import get_user_model
-
+from django.views import View
+from django.views.generic.base import ContextMixin
 User = get_user_model()
 
 # Create your views here.
@@ -107,22 +110,28 @@ def admin_dashboard(request):
     return render(request,'admin/dashboard.html', {"users": users})
 
 
-@user_passes_test(is_admin, login_url='no-permission')
-def assign_role(request, user_id):
-    user = User.objects.get(id=user_id)
-    form = AssignedRoleForm()
-    if request.method == 'POST':
+class AssignRoleView(LoginRequiredMixin,PermissionRequiredMixin,UpdateView):
+    model = User
+    form_class = AssignedRoleForm
+    template_name = 'admin/assign_role.html'
+    context_object_name = 'user'
+    pk_url_kwarg = 'user_id'
+    permission_required = "auth.change_user"
+    
+    
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
         form = AssignedRoleForm(request.POST)
         
         if form.is_valid():
             role = form.cleaned_data.get('role')
-            user.groups.clear() # Remove old roles
-            user.groups.add(role)
-            messages.success(request, f'User {user.username} has been assigned to the {role.name} role')
+            self.object.groups.clear() 
+            self.object.groups.add(role)
+            messages.success(request, f'User {self.object.username} has been assigned to the {role.name} role')
             return redirect('admin-dashboard')
-    
-    return render(request, 'admin/assign_role.html', {"form": form})   
-    
+        return redirect('admin-dashboard')
+    def get_success_url(self):
+        return reverse_lazy('admin-dashboard')
   
   
 @user_passes_test(is_admin, login_url='no-permission') 
@@ -139,11 +148,37 @@ def create_group(request):
     return render(request, 'admin/create_group.html', {'form': form}) 
 
 
-@user_passes_test(is_admin, login_url='no-permission')
-def group_list(request):
-    groups = Group.objects.prefetch_related('permissions').all()
-    return render(request, 'admin/group_list.html', {"groups": groups})
+class CreateGroup(ContextMixin,LoginRequiredMixin,PermissionRequiredMixin,View):
+    permission_required = 'tasks.add_task'
+    login_url = 'sign-in'
+    template_name = 'admin/create_group.html'
     
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['form'] = kwargs.get('form', CreateGroupForm())
+        return context
+    # GET 
+    def get(self, request, *args, **kwargs ):
+        context = self.get_context_data()
+        return render(request, self.template_name, context)
+    # POST
+    def post(self, request, *args, **kwargs):
+        form = CreateGroupForm(request.POST)
+        
+        if form.is_valid():
+            group = form.save()
+            messages.success(request, f'Group {group.name} has been created successfully')
+            return redirect('create-group')
+
+
+
+
+class GrouplistView(ListView):
+    model = Group
+    context_object_name = 'groups'
+    template_name = 'admin/group_list.html'
+    queryset = Group.objects.prefetch_related('permissions').all()
     
 class ProfileView(TemplateView):
     template_name = 'accounts/profile.html'
